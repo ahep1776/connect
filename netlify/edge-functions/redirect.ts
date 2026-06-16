@@ -19,8 +19,7 @@ export default async (request: Request, context: Context) => {
 
     if (GA_MEASUREMENT_ID && GA_API_SECRET) {
       const gaPayload = {
-        client_id:
-          "edge_generated_" + Math.random().toString(36).substring(2, 15),
+        client_id: "edge_generated_" + crypto.randomUUID(),
         events: [
           {
             name: "qr_scan",
@@ -38,6 +37,7 @@ export default async (request: Request, context: Context) => {
         `https://www.google-analytics.com/mp/collect?measurement_id=${GA_MEASUREMENT_ID}&api_secret=${GA_API_SECRET}`,
         {
           method: "POST",
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify(gaPayload),
         }
       ).catch((err) => console.error("GA4 logging failed", err));
