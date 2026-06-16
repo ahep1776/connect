@@ -1,5 +1,8 @@
 import { Context } from "@netlify/edge-functions";
 
+// TODO - consider making this configurable for different environments?
+const DEBUG = false;
+
 export default async (request: Request, context: Context) => {
   const url = new URL(request.url);
   const path = url.pathname; // e.g., "/facebook"
@@ -50,33 +53,32 @@ export default async (request: Request, context: Context) => {
       // Safely URL-encode the user agent string so it doesn't break the URL path
       const encodedUA = encodeURIComponent(userAgent);
       // Construct the destination endpoint, appending the IP and UA as URL Query Parameters
-      const gaUrl = `https://www.google-analytics.com/debug/mp/collect` +
-                    `?measurement_id=${GA_MEASUREMENT_ID}` +
-                    `&api_secret=${GA_API_SECRET}` +
-                    `&ip_override=${userIP}` +    // <-- This tells Google to calculate demographics from this IP
-                    `&user_agent=${encodedUA}`;   // <-- This tells Google what phone/browser scanned it
+      const gaUrl = [
+        `https://www.google-analytics.com${DEBUG ? '/debug' : ''}/mp/collect`,
+        `?measurement_id=${GA_MEASUREMENT_ID}`,
+        `&api_secret=${GA_API_SECRET}`,
+        `&ip_override=${userIP}`,    // <-- This tells Google to calculate demographics from this IP
+        `&user_agent=${encodedUA}`,  // <-- This tells Google what phone/browser scanned it
+      ].join('');
 
-// Changing the path to /debug/mp/collect returns validation error messages
-const debugResponse = await fetch(gaUrl, {
-  method: "POST",
-  headers: { "Content-Type": "application/json" },
-  body: JSON.stringify(gaPayload),
-});
-
-const validationResult = await debugResponse.json();
-console.log("GA4 Validation Engine Feedback:", JSON.stringify(validationResult, null, 2));
-
-      // Do NOT await — redirect happens instantly while GA call runs in background
-/*
-      fetch(
-        `https://www.google-analytics.com/mp/collect?measurement_id=${GA_MEASUREMENT_ID}&api_secret=${GA_API_SECRET}`,
-        {
+      if (DEBUG) {
+        // Changing the path to /debug/mp/collect returns validation error messages
+        const debugResponse = await fetch(gaUrl, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(gaPayload),
-        }
-      ).catch((err) => console.error("GA4 logging failed", err));
-      */
+        });
+        
+        const validationResult = await debugResponse.json();
+        console.log("GA4 Validation Engine Feedback:", JSON.stringify(validationResult, null, 2));
+      } else {
+        // Do NOT await — redirect happens instantly while GA call runs in background
+        fetch(gaUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(gaPayload),
+        }).catch((err) => console.error("GA4 logging failed", err));
+      }
     }
 
     // Server-side redirect to the social page
