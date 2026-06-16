@@ -17,19 +17,31 @@ export default async (request: Request, context: Context) => {
     const GA_MEASUREMENT_ID = Deno.env.get("GA_MEASUREMENT_ID");
     const GA_API_SECRET = Deno.env.get("GA_API_SECRET");
 
+    // Grab user demographic metadata provided natively by Netlify's CDN edge
+    const userIP = context.ip;
+    const userAgent = request.headers.get("user-agent") || "Unknown Device";
+    const userCountry = context.geo?.country?.name || "Unknown Country";
+    const userRegion = context.geo?.subdivision?.name || "Unknown Region"; // e.g. "Virginia"
+    const userCity = context.geo?.city || "Unknown City";
+    
     if (GA_MEASUREMENT_ID && GA_API_SECRET) {
       const gaPayload = {
-        client_id: "edge_generated_" + crypto.randomUUID(),
-        events: [
-          {
-            name: "qr_scan",
-            params: {
-              social_platform: path.substring(1), // e.g. "facebook"
-              engagement_medium: "qr_code",
-              campaign: "social-connect-2026",
-            },
-          },
-        ],
+        client_id: "edge_" + crypto.randomUUID(),
+        // 1. Pass the user_agent and ip_address parameters at the top level
+        user_agent: userAgent, 
+        ip_address: userIP,
+        events: [{
+          name: "qr_scan",
+          params: {
+            social_platform: path.substring(1),
+            engagement_medium: "qr_code",
+            campaign: "social-connect-2026",
+            // 2. Pass geographical data as custom event parameters
+            scan_country: userCountry,
+            scan_region: userRegion,
+            scan_city: userCity
+          }
+        }]
       };
 
       // Do NOT await — redirect happens instantly while GA call runs in background
