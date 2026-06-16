@@ -6,8 +6,8 @@ export default async (request: Request, context: Context) => {
 
   // Map paths to their destination URLs
   const destinations: Record<string, string> = {
-    "/facebook": "https://www.facebook.com/ahep1776",
-    "/instagram": "https://www.instagram.com/ahep1776",
+    "/facebook": "https://www.facebook.com/profile.php?id=100093902866584",
+    "/instagram": "https://www.instagram.com/ahep1776/",
   };
 
   const targetUrl = destinations[path];
