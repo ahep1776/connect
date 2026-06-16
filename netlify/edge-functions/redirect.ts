@@ -44,7 +44,19 @@ export default async (request: Request, context: Context) => {
         }]
       };
 
+      // Changing the path to /debug/mp/collect returns validation error messages
+const debugResponse = await fetch(`https://www.google-analytics.com/debug/mp/collect?measurement_id=${GA_MEASUREMENT_ID}&api_secret=${GA_API_SECRET}`, {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify(gaPayload),
+});
+
+const validationResult = await debugResponse.json();
+console.log("GA4 Validation Engine Feedback:", JSON.stringify(validationResult, null, 2));
+
+      
       // Do NOT await — redirect happens instantly while GA call runs in background
+/*
       fetch(
         `https://www.google-analytics.com/mp/collect?measurement_id=${GA_MEASUREMENT_ID}&api_secret=${GA_API_SECRET}`,
         {
@@ -53,6 +65,7 @@ export default async (request: Request, context: Context) => {
           body: JSON.stringify(gaPayload),
         }
       ).catch((err) => console.error("GA4 logging failed", err));
+      */
     }
 
     // Server-side redirect to the social page
