@@ -25,17 +25,20 @@ export default async (request: Request, context: Context) => {
     const userCity = context.geo?.city || "Unknown City";
     
     if (GA_MEASUREMENT_ID && GA_API_SECRET) {
+      const typedArray = new Uint32Array(1);
+      crypto.getRandomValues(typedArray);
+      const randomSessionId = typedArray[0].toString();
+
       const gaPayload = {
         client_id: "edge_" + crypto.randomUUID(),
-        // 1. Pass the user_agent and ip_address parameters at the top level
-        user_agent: userAgent, 
-        ip_address: userIP,
         events: [{
           name: "qr_scan",
           params: {
             social_platform: path.substring(1),
             engagement_medium: "qr_code",
-            campaign: "social-connect-2026",
+            campaign: "social-qrs",
+            session_id: randomSessionId,
+            engagement_time_msec: "100",
             // 2. Pass geographical data as custom event parameters
             scan_country: userCountry,
             scan_region: userRegion,
@@ -44,8 +47,17 @@ export default async (request: Request, context: Context) => {
         }]
       };
 
-      // Changing the path to /debug/mp/collect returns validation error messages
-const debugResponse = await fetch(`https://www.google-analytics.com/debug/mp/collect?measurement_id=${GA_MEASUREMENT_ID}&api_secret=${GA_API_SECRET}`, {
+      // Safely URL-encode the user agent string so it doesn't break the URL path
+      const encodedUA = encodeURIComponent(userAgent);
+      // Construct the destination endpoint, appending the IP and UA as URL Query Parameters
+      const gaUrl = `https://www.google-analytics.com/debug/mp/collect` +
+                    `?measurement_id=${GA_MEASUREMENT_ID}` +
+                    `&api_secret=${GA_API_SECRET}` +
+                    `&ip_override=${userIP}` +    // <-- This tells Google to calculate demographics from this IP
+                    `&user_agent=${encodedUA}`;   // <-- This tells Google what phone/browser scanned it
+
+// Changing the path to /debug/mp/collect returns validation error messages
+const debugResponse = await fetch(gaUrl, {
   method: "POST",
   headers: { "Content-Type": "application/json" },
   body: JSON.stringify(gaPayload),
@@ -54,7 +66,6 @@ const debugResponse = await fetch(`https://www.google-analytics.com/debug/mp/col
 const validationResult = await debugResponse.json();
 console.log("GA4 Validation Engine Feedback:", JSON.stringify(validationResult, null, 2));
 
-      
       // Do NOT await — redirect happens instantly while GA call runs in background
 /*
       fetch(
